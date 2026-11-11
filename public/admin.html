@@ -85,7 +85,7 @@ tr.sel{background:#222226}tbody tr{cursor:pointer}
     </section>
 
     <section id="tab-users" hidden>
-      <div class="card tbl"><table><thead><tr><th>Alumno</th><th>Correo</th><th>Clases disponibles</th><th>Desbloqueadas</th><th>Ajustar</th></tr></thead><tbody id="userRows"></tbody></table></div>
+      <div class="card tbl"><table><thead><tr><th>Alumno / cédula</th><th>Correo / celular</th><th>Clases disponibles</th><th>Desbloqueadas</th><th>Ajustar</th></tr></thead><tbody id="userRows"></tbody></table></div>
     </section>
   </div>
 </div>
@@ -158,7 +158,7 @@ document.querySelector(".tabs").addEventListener("click",async e=>{
   if(b.dataset.tab==="users") loadUsers();
 });
 $("#saveStock").addEventListener("click",async()=>{const stock={};document.querySelectorAll("[data-k]").forEach(i=>stock[i.dataset.k]=i.value);await api("/api/admin/stock",{stock});$("#stockMsg").textContent="Inventario guardado "+new Date().toLocaleTimeString("es-EC");});
-async function loadUsers(){const {users}=await api("/api/admin/users"); $("#userRows").innerHTML=users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><b>${u.credits}</b></td><td>${u.unlocked.length}</td><td><button class="btn" data-u="${u.id}" data-d="1" type="button">+1</button> <button class="btn" data-u="${u.id}" data-d="-1" type="button">−1</button></td></tr>`).join("")||`<tr><td colspan="5" class="mute">Aún no hay alumnos registrados.</td></tr>`;}
+async function loadUsers(){const {users}=await api("/api/admin/users"); $("#userRows").innerHTML=users.map(u=>`<tr><td>${esc(u.name)}<br><span class="mute">C.I. ${esc(u.cedula||"—")}</span></td><td>${esc(u.email)}<br><span class="mute">${esc(u.phone||"")}</span></td><td><b>${u.credits}</b></td><td>${u.unlocked.length}</td><td><button class="btn" data-u="${u.id}" data-d="1" type="button">+1</button> <button class="btn" data-u="${u.id}" data-d="-1" type="button">−1</button></td></tr>`).join("")||`<tr><td colspan="5" class="mute">Aún no hay alumnos registrados.</td></tr>`;}
 $("#userRows").addEventListener("click",async e=>{const b=e.target.closest("[data-u]"); if(!b) return; await api(`/api/admin/users/${b.dataset.u}/credits`,{delta:b.dataset.d}); loadUsers();});
 boot();
 </script>

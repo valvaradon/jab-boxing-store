@@ -718,7 +718,9 @@ function showAccount(mode, msg){
   setSheet(reg?"Crear cuenta":"Iniciar sesión", `
     ${msg?`<p class="notice">${esc(msg)}</p>`:""}
     <form id="authForm" class="steps" style="gap:12px" novalidate>
-      ${reg?`<div class="field"><label for="a_name">Nombre y apellido</label><input id="a_name" autocomplete="name"></div>`:""}
+      ${reg?`<div class="field"><label for="a_name">Nombre y apellido</label><input id="a_name" autocomplete="name"></div>
+      <div class="field"><label for="a_ced">Cédula</label><input id="a_ced" inputmode="numeric" maxlength="10" placeholder="10 dígitos"></div>
+      <div class="field"><label for="a_phone">Celular</label><input id="a_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xxxxxxxx"></div>`:""}
       <div class="field"><label for="a_email">Correo</label><input id="a_email" type="email" autocomplete="email"></div>
       <div class="field"><label for="a_pw">Contraseña</label><input id="a_pw" type="password" autocomplete="${reg?"new-password":"current-password"}" placeholder="${reg?"Mínimo 6 caracteres":""}"></div>
       <p class="err" id="authErr" hidden></p>
@@ -730,12 +732,48 @@ function showAccount(mode, msg){
     const err=$("#authErr"); err.hidden=true;
     try {
       const body = { email: $("#a_email").value, password: $("#a_pw").value };
-      if (reg) body.name = $("#a_name").value;
-      ME = (await api(reg?"/api/auth/register":"/api/auth/login", body)).user;
-      renderAccBtn(); renderClasses(); toast(reg?"Cuenta creada":"Sesión iniciada");
-      const next = state.afterLogin; state.afterLogin = null;
-      if (next) next(); else closeSheet();
+      if (reg) {
+        Object.assign(body, { name: $("#a_name").value, cedula: $("#a_ced").value, phone: $("#a_phone").value });
+        return showVerify(await api("/api/auth/register", body));
+      }
+      ME = (await api("/api/auth/login", body)).user;
+      afterAuth("Sesión iniciada");
     } catch(x){ err.textContent=x.message; err.hidden=false; }
+  });
+}
+function afterAuth(msg){
+  renderAccBtn(); renderClasses(); toast(msg);
+  const next = state.afterLogin; state.afterLogin = null;
+  if (next) next(); else closeSheet();
+}
+function demoCodes(d){
+  if (!d) return "";
+  const parts = [d.email?`correo: <b>${d.email}</b>`:"", d.sms?`celular: <b>${d.sms}</b>`:""].filter(Boolean).join(" · ");
+  return `<p class="notice">Modo prueba: en el sitio real estos códigos llegan al correo y por SMS. Códigos de ${parts}</p>`;
+}
+function showVerify(r){
+  setSheet("Verifica tu cuenta", `
+    <p>Enviamos un código de 6 dígitos a <b>${esc(r.email)}</b> y otro por SMS al <b>${esc(r.phone)}</b>.</p>
+    <div id="demoBox">${demoCodes(r.demo)}</div>
+    <form id="verForm" class="steps" style="gap:12px" novalidate>
+      <div class="field"><label for="v_email">Código del correo</label><input id="v_email" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+      <div class="field"><label for="v_sms">Código del celular (SMS)</label><input id="v_sms" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+      <p class="err" id="verErr" hidden></p>
+      <button class="cta" type="submit">Verificar y crear cuenta</button>
+    </form>`,
+    `<button class="cta ghost" type="button" id="resend">Reenviar códigos</button>`);
+  $("#verForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const err=$("#verErr"); err.hidden=true;
+    try {
+      ME = (await api("/api/auth/verify", { pending: r.pending, emailCode: $("#v_email").value, smsCode: $("#v_sms").value })).user;
+      afterAuth("Cuenta verificada y creada");
+    } catch(x){ err.textContent=x.message; err.hidden=false; }
+  });
+  $("#resend").addEventListener("click", async () => {
+    const err=$("#verErr"); err.hidden=true;
+    try { const x = await api("/api/auth/resend", { pending: r.pending }); $("#demoBox").innerHTML = demoCodes(x.demo); toast("Códigos reenviados"); }
+    catch(x){ err.textContent=x.message; err.hidden=false; }
   });
 }
 function requireLogin(next, msg){ if (ME) return next(); state.afterLogin = next; showAccount("register", msg); }
