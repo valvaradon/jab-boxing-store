@@ -66,7 +66,7 @@ async function currentUser(req) {
   if (!s?.uid) return null;
   return db.get("users", s.uid);
 }
-const publicUser = u => u && ({ id: u.id, name: u.name, email: u.email, credits: u.credits || 0, unlocked: u.unlocked || [] });
+const publicUser = u => u && ({ id: u.id, name: u.name, email: u.email, phone: u.phone || "", cedula: u.cedula || "", credits: u.credits || 0, unlocked: u.unlocked || [] });
 const isAdmin = req => !!unsign(cookies(req).jab_admin)?.admin;
 
 /* ------------------------- inventario ------------------------- */
@@ -101,6 +101,51 @@ async function sendMail(to, subject, text) {
   if (!mailer || !to) return;
   try { await mailer.sendMail({ from: process.env.MAIL_FROM || process.env.SMTP_USER, to, subject, text }); }
   catch (e) { console.error("Correo no enviado:", e.message); }
+}
+
+/* ------------------------- verificación de cuentas ------------------------- */
+// Correo: código por SMTP. Celular: código por SMS con Twilio (TWILIO_ACCOUNT_SID,
+// TWILIO_AUTH_TOKEN, TWILIO_FROM). Si falta alguno, el código se muestra en pantalla
+// (modo prueba) para poder hacer la demostración sin cuentas pagadas.
+const EMAIL_READY = !!process.env.SMTP_HOST;
+const SMS_READY = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM);
+async function sendSms(to, text) {
+  if (!SMS_READY) return;
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + Buffer.from(sid + ":" + process.env.TWILIO_AUTH_TOKEN).toString("base64"), "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ To: to, From: process.env.TWILIO_FROM, Body: text })
+    });
+    if (!r.ok) console.error("SMS no enviado:", r.status, await r.text());
+  } catch (e) { console.error("SMS no enviado:", e.message); }
+}
+// Cédula ecuatoriana: provincia válida, tercer dígito < 6 y dígito verificador (módulo 10).
+function cedulaValida(c) {
+  if (!/^\d{10}$/.test(c)) return false;
+  const prov = +c.slice(0, 2);
+  if (!((prov >= 1 && prov <= 24) || prov === 30) || +c[2] > 5) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) { let d = +c[i] * (i % 2 === 0 ? 2 : 1); if (d > 9) d -= 9; sum += d; }
+  return (10 - (sum % 10)) % 10 === +c[9];
+}
+// Celular de Ecuador: 09XXXXXXXX o +593 9XXXXXXXX. Devuelve formato internacional.
+const celularEC = v => {
+  const d = String(v || "").replace(/\D/g, "");
+  if (/^09\d{8}$/.test(d)) return "+593" + d.slice(1);
+  if (/^5939\d{8}$/.test(d)) return "+" + d;
+  return null;
+};
+const newCode = () => String(crypto.randomInt(0, 1e6)).padStart(6, "0");
+const hashCode = c => crypto.createHmac("sha256", SECRET).update(String(c).trim()).digest("hex");
+async function sendCodes(pend, emailCode, smsCode) {
+  await sendMail(pend.email, "Tu código de verificación Jab Store",
+    `Hola ${pend.name},\n\nTu código para verificar tu correo es: ${emailCode}\n\nVence en 15 minutos. Si no fuiste tú, ignora este mensaje.`);
+  await sendSms(pend.phone, `Jab Store: tu código de verificación es ${smsCode}. Vence en 15 minutos.`);
+  return (!EMAIL_READY || !SMS_READY)
+    ? { email: EMAIL_READY ? null : emailCode, sms: SMS_READY ? null : smsCode }
+    : null;
 }
 const orderLink = o => `${PUBLIC_URL}/?pedido=${o.id}&t=${o.token}`;
 const orderSummary = o => [
@@ -194,17 +239,57 @@ app.get("/api/config", wrap(async (req, res) => {
 app.get("/api/me", wrap(async (req, res) => res.json({ user: publicUser(await currentUser(req)) })));
 
 app.post("/api/auth/register", wrap(async (req, res) => {
-  const name = String(req.body.name || "").trim().slice(0, 80);
-  const email = emailKey(req.body.email);
-  const pw = String(req.body.password || "");
-  if (!name) throw fail(400, "Escribe tu nombre.");
+  const b = req.body || {};
+  const name = String(b.name || "").trim().slice(0, 80);
+  const email = emailKey(b.email);
+  const cedula = String(b.cedula || "").replace(/\D/g, "");
+  const phone = celularEC(b.phone);
+  const pw = String(b.password || "");
+  if (!name) throw fail(400, "Escribe tu nombre y apellido.");
+  if (!cedulaValida(cedula)) throw fail(400, "La cédula no es válida. Revisa los 10 dígitos.");
+  if (!phone) throw fail(400, "Escribe un celular de Ecuador válido (09xxxxxxxx).");
   if (!/^\S+@\S+\.\S+$/.test(email)) throw fail(400, "Escribe un correo válido.");
   if (pw.length < 6) throw fail(400, "La contraseña debe tener al menos 6 caracteres.");
-  const idx = await db.get("emails", email);
-  if (idx) throw fail(409, "Ya existe una cuenta con ese correo. Inicia sesión.");
-  const u = { id: "u_" + token(), name, email, pass: hashPw(pw), credits: 0, unlocked: [], createdAt: new Date().toISOString() };
+  if (await db.get("emails", email)) throw fail(409, "Ya existe una cuenta con ese correo. Inicia sesión.");
+  if (await db.get("cedulas", cedula)) throw fail(409, "Ya existe una cuenta con esa cédula.");
+  if (await db.get("phones", phone)) throw fail(409, "Ya existe una cuenta con ese celular.");
+  const emailCode = newCode(), smsCode = newCode();
+  const pend = { id: "p_" + token(), name, email, cedula, phone, pass: hashPw(pw),
+    emailCode: hashCode(emailCode), smsCode: hashCode(smsCode), tries: 0, sends: 1, exp: Date.now() + 15 * 60e3 };
+  await db.put("pending", pend.id, pend);
+  const demo = await sendCodes(pend, emailCode, smsCode);
+  res.json({ pending: pend.id, email, phone: phone.replace(/^\+593/, "0").replace(/(\d{3})\d{4}(\d{3})/, "$1****$2"), demo });
+}));
+
+app.post("/api/auth/resend", wrap(async (req, res) => {
+  const pend = await db.get("pending", String(req.body.pending || ""));
+  if (!pend || pend.exp < Date.now()) throw fail(410, "El registro venció. Vuelve a llenar el formulario.");
+  if (pend.sends >= 5) throw fail(429, "Ya enviamos varios códigos. Espera unos minutos y vuelve a registrarte.");
+  const emailCode = newCode(), smsCode = newCode();
+  Object.assign(pend, { emailCode: hashCode(emailCode), smsCode: hashCode(smsCode), tries: 0, sends: pend.sends + 1, exp: Date.now() + 15 * 60e3 });
+  await db.put("pending", pend.id, pend);
+  res.json({ ok: true, demo: await sendCodes(pend, emailCode, smsCode) });
+}));
+
+app.post("/api/auth/verify", wrap(async (req, res) => {
+  const pend = await db.get("pending", String(req.body.pending || ""));
+  if (!pend || pend.exp < Date.now()) throw fail(410, "El código venció. Pide uno nuevo o vuelve a registrarte.");
+  if (pend.tries >= 5) throw fail(429, "Demasiados intentos. Pide códigos nuevos.");
+  const okEmail = hashCode(req.body.emailCode || "") === pend.emailCode;
+  const okSms = hashCode(req.body.smsCode || "") === pend.smsCode;
+  if (!okEmail || !okSms) {
+    pend.tries++; await db.put("pending", pend.id, pend);
+    throw fail(400, !okEmail && !okSms ? "Los dos códigos son incorrectos." : !okEmail ? "El código del correo es incorrecto." : "El código del celular es incorrecto.");
+  }
+  if (await db.get("emails", pend.email) || await db.get("cedulas", pend.cedula)) throw fail(409, "Esta cuenta ya fue creada. Inicia sesión.");
+  const now = new Date().toISOString();
+  const u = { id: "u_" + token(), name: pend.name, email: pend.email, cedula: pend.cedula, phone: pend.phone, pass: pend.pass,
+    emailVerifiedAt: now, phoneVerifiedAt: now, credits: 0, unlocked: [], createdAt: now };
   await db.put("users", u.id, u);
-  await db.put("emails", email, { uid: u.id });
+  await db.put("emails", u.email, { uid: u.id });
+  await db.put("cedulas", u.cedula, { uid: u.id });
+  await db.put("phones", u.phone, { uid: u.id });
+  await db.del("pending", pend.id);
   setCookie(res, "jab_s", sign({ uid: u.id, exp: Date.now() + 90 * 864e5 }), 90);
   res.json({ user: publicUser(u) });
 }));

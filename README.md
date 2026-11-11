@@ -70,6 +70,15 @@ Mientras no haya token, el pago con tarjeta usa un **simulador** (no cobra nada)
 Agrega en Render: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` y `MAIL_FROM`.
 Con Gmail: `smtp.gmail.com`, puerto `465`, y una "contraseña de aplicación".
 
+## Cuentas verificadas (correo, celular y cédula)
+
+Para crear una cuenta se pide nombre, cédula, celular, correo y contraseña.
+
+- **Cédula:** se valida el dígito verificador de la cédula ecuatoriana y que no esté registrada en otra cuenta. Esto confirma que el número es válido, no que pertenezca a esa persona (eso requiere un servicio pagado de consulta al Registro Civil).
+- **Correo:** se envía un código de 6 dígitos (requiere las variables SMTP de la sección anterior).
+- **Celular:** se envía un código por SMS con Twilio. Agrega en Render `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y `TWILIO_FROM` (el número de envío de Twilio).
+- Mientras falten SMTP o Twilio, los códigos se muestran en pantalla como **Modo prueba** para poder hacer la demostración.
+
 ## Cargar las clases online
 
 En `content/tienda.js`, dentro de `CLASSES`, pon en `videoUrl` el enlace de inserción del video:
