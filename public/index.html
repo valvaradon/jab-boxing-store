@@ -177,6 +177,9 @@ footer.site strong{color:var(--paper);font:700 15px var(--f-label);letter-spacin
 .nav .links a:hover{background:var(--coal)}
 .nav .acts{display:flex;gap:8px;flex:none}
 .acc-btn{background:transparent;border:1.5px solid var(--coal-2);border-radius:10px;padding:9px 12px;font:700 14px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase}
+.admin-btn{display:inline-flex;align-items:center;text-decoration:none;color:var(--paper)}
+.admin-btn:hover{border-color:var(--jab);color:var(--jab)}
+@media (max-width:1100px){.admin-btn{display:none}}
 .acc-btn .cr{color:var(--jab);margin-left:6px;font-variant-numeric:tabular-nums}
 .bar{position:static;background:transparent;border-bottom:0}
 .bar .wrap{padding-inline:0}
@@ -298,6 +301,7 @@ h2.big{margin:0;font:400 clamp(34px,5.5vw,58px)/.95 var(--f-display);text-transf
       <a href="#tienda">Tienda</a><a href="#clases">Clases online</a><a href="#entrenadores">Entrenadores</a><a href="#historia">Historia</a><a href="#sedes">Sedes</a>
     </nav>
     <div class="acts">
+      <a class="acc-btn admin-btn" href="/admin" title="Panel de administración">Admin</a>
       <button class="acc-btn" id="accBtn" type="button">Mi cuenta</button>
       <button class="cart-btn" id="openCart" type="button">Carrito <span class="count" id="count">0</span></button>
     </div>
@@ -397,6 +401,7 @@ h2.big{margin:0;font:400 clamp(34px,5.5vw,58px)/.95 var(--f-display);text-transf
     <div><strong>WhatsApp</strong><span id="waShow"></span></div>
     <div><strong>Instagram</strong><a id="igLink" href="#" target="_blank" rel="noopener" style="color:inherit">@jab.hiitboxing</a></div>
     <div><strong>Pagos</strong>Tarjeta (Payphone) o transferencia</div>
+    <div><strong>Gimnasio</strong><a href="/admin" style="color:inherit">Acceso administrador</a></div>
   </div>
 </footer>
 
