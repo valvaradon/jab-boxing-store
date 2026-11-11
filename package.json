@@ -1,0 +1,14 @@
+{
+  "name": "jab-store",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Tienda, pagos, inventario y clases online de JAB HIIT Boxing",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "express": "4.21.2",
+    "nodemailer": "6.9.16",
+    "pg": "8.13.1"
+  }
+}

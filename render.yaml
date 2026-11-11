@@ -1,0 +1,21 @@
+# VERSIÓN DE PRUEBA (gratis) para mostrar al cliente.
+# Render: New + > Blueprint > elige este repositorio > Apply.
+# - Plan gratuito: la página "duerme" tras 15 min sin visitas y tarda ~1 min en despertar.
+# - Sin base de datos: los pedidos de prueba se borran cuando el servidor se reinicia.
+# - Sin PAYPHONE_TOKEN los pagos con tarjeta usan el simulador (no se cobra nada).
+# Para producción, ver README (plan starter + base de datos Postgres).
+services:
+  - type: web
+    name: jab-store-demo
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/config
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
