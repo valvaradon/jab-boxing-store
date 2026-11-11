@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Panel Jab Store</title>
+<style>
+:root{--ink:#0b0b0b;--coal:#17171a;--coal-2:#2a2a2f;--jab:#ffd21f;--glove:#d7262e;--ok:#1f7a3a;--paper:#f5f5f2;--mute:#a3a29b;color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--ink);color:var(--paper);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-left))}
+h1{font:800 22px/1 system-ui;margin:0}h1 span{color:var(--jab)}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+button,input,select{font:inherit;color:inherit}
+.btn{background:var(--coal);border:1.5px solid var(--coal-2);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:700}
+.btn.y{background:var(--jab);border-color:var(--jab);color:var(--ink)}.btn.r{border-color:var(--glove);color:#ff8a8a}.btn.g{background:var(--ok);border-color:var(--ok)}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}.tabs .btn[aria-pressed=true]{background:var(--jab);color:var(--ink);border-color:var(--jab)}
+input,select{background:var(--coal);border:1.5px solid var(--coal-2);border-radius:10px;padding:8px 10px}
+.card{background:var(--coal);border:1px solid var(--coal-2);border-radius:14px;padding:16px}
+.login{max-width:360px;margin:12vh auto;display:grid;gap:12px}
+.tbl{overflow-x:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--coal-2);white-space:nowrap}th{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+tr.sel{background:#222226}tbody tr{cursor:pointer}
+.st{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;background:var(--coal-2)}
+.st.ok{background:var(--ok)}.st.wait{background:var(--jab);color:var(--ink)}.st.bad{background:var(--glove)}
+.layout{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start}.layout>*{min-width:0}
+.detail{display:grid;gap:12px;position:sticky;top:12px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}.kv span{color:var(--mute)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.receipt img{max-width:100%;border-radius:10px;border:1px solid var(--coal-2)}
+.receipt iframe{width:100%;height:420px;border:0;border-radius:10px;background:#fff}
+.err{color:#ff8a8a;margin:0}.mute{color:var(--mute)}.notice{background:#2a2410;border:1px solid #5a4a12;color:#ffe9a3;border-radius:10px;padding:10px 12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.stock input{width:64px;text-align:center}
+@media (max-width:900px){.layout{grid-template-columns:1fr}.detail{position:static}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <form class="card login" id="login" hidden>
+    <h1>Panel <span>Jab Store</span></h1>
+    <label for="pw" class="mute">Contraseña de administrador</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <p class="err" id="loginErr" hidden></p>
+    <button class="btn y" type="submit">Entrar</button>
+  </form>
+
+  <div id="app" hidden>
+    <header><h1>Panel <span>Jab Store</span></h1><div class="acts"><a class="btn" href="/" target="_blank" rel="noopener" style="text-decoration:none">Ver tienda</a><button class="btn" id="logout" type="button">Salir</button></div></header>
+    <p class="notice" id="sysNote" hidden></p>
+    <div class="tabs" role="tablist">
+      <button class="btn" type="button" data-tab="orders" aria-pressed="true">Pedidos</button>
+      <button class="btn" type="button" data-tab="stock" aria-pressed="false">Inventario</button>
+      <button class="btn" type="button" data-tab="users" aria-pressed="false">Membresías</button>
+    </div>
+
+    <section id="tab-orders">
+      <div class="filters">
+        <select id="fStatus" aria-label="Filtrar por estado">
+          <option value="">Todos los estados</option>
+          <option value="accion">Requieren acción</option>
+          <option value="comprobante_recibido">Verificar transferencia</option>
+          <option value="esperando_transferencia">Esperando transferencia</option>
+          <option value="pagado">Pagados (por despachar)</option>
+          <option value="listo_retiro">Listos para retirar</option>
+          <option value="enviado">Enviados</option>
+          <option value="entregado">Entregados</option>
+          <option value="pago_rechazado">Pago rechazado</option>
+          <option value="cancelado">Cancelados</option>
+        </select>
+        <select id="fType" aria-label="Filtrar por tipo"><option value="">Ropa y clases</option><option value="tienda">Ropa</option><option value="membresia">Clases online</option></select>
+        <input id="fQ" type="search" placeholder="Buscar pedido, nombre o correo" aria-label="Buscar">
+        <button class="btn" id="reload" type="button">Actualizar</button>
+      </div>
+      <div class="layout">
+        <div class="card tbl"><table><thead><tr><th>Pedido</th><th>Fecha</th><th>Cliente</th><th>Entrega</th><th>Pago</th><th>Total</th><th>Estado</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div class="card detail" id="detail"><p class="mute">Elige un pedido para ver el detalle.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-stock" hidden>
+      <div class="card tbl stock"><table><thead><tr><th>Producto</th><th>Stock por talla</th></tr></thead><tbody id="stockRows"></tbody></table>
+      <div class="acts" style="margin-top:12px"><button class="btn y" id="saveStock" type="button">Guardar inventario</button><span class="mute" id="stockMsg"></span></div></div>
+    </section>
+
+    <section id="tab-users" hidden>
+      <div class="card tbl"><table><thead><tr><th>Alumno</th><th>Correo</th><th>Clases disponibles</th><th>Desbloqueadas</th><th>Ajustar</th></tr></thead><tbody id="userRows"></tbody></table></div>
+    </section>
+  </div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const money=n=>"$"+Number(n).toFixed(2);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ST={pendiente_pago:["Pago en proceso","wait"],esperando_transferencia:["Esperando transferencia","wait"],comprobante_recibido:["Verificar transferencia","wait"],pagado:["Pagado","ok"],listo_retiro:["Listo para retirar","ok"],enviado:["Enviado","ok"],entregado:["Entregado","ok"],pago_rechazado:["Pago rechazado","bad"],cancelado:["Cancelado","bad"]};
+async function api(url,body){const r=await fetch(url,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});const d=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(d.error||"Error");e.status=r.status;throw e;}return d;}
+let ORDERS=[], SEL=null;
+
+async function boot(){
+  try{ const d=await api("/api/admin/orders"); $("#login").hidden=true; $("#app").hidden=false; setOrders(d); }
+  catch(e){ $("#login").hidden=false; $("#app").hidden=true; }
+}
+function setOrders(d){
+  ORDERS=d.orders;
+  const notes=[]; if(d.demoPayments) notes.push("Pagos con tarjeta en modo simulador: agrega PAYPHONE_TOKEN y PAYPHONE_STORE_ID en Render para cobrar de verdad.");
+  if(d.db!=="postgres") notes.push("Base de datos local: los pedidos se borran en cada despliegue. Conecta una base Postgres (DATABASE_URL) antes de vender.");
+  $("#sysNote").hidden=!notes.length; $("#sysNote").innerHTML=notes.join("<br>");
+  renderRows(); if(SEL) showDetail(SEL);
+}
+function renderRows(){
+  const st=$("#fStatus").value, ty=$("#fType").value, q=$("#fQ").value.toLowerCase();
+  const list=ORDERS.filter(o=>(!st||(st==="accion"?["comprobante_recibido","pagado"].includes(o.status):o.status===st))&&(!ty||o.type===ty)&&(!q||(o.id+" "+o.customer.name+" "+o.customer.email).toLowerCase().includes(q)));
+  $("#rows").innerHTML=list.map(o=>{const [l,c]=ST[o.status]||[o.status,""];return `<tr data-id="${o.id}" class="${o.id===SEL?"sel":""}"><td><b>${o.id}</b></td><td>${new Date(o.createdAt).toLocaleString("es-EC",{dateStyle:"short",timeStyle:"short"})}</td><td>${esc(o.customer.name)}</td><td>${o.type==="membresia"?"Clases online":esc(o.shipping.label)}</td><td>${o.payment.method}</td><td>${money(o.total)}</td><td><span class="st ${c}">${l}</span></td></tr>`}).join("")||`<tr><td colspan="7" class="mute">No hay pedidos con ese filtro.</td></tr>`;
+}
+async function showDetail(id){
+  SEL=id; renderRows();
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  const a=o.shipping?.address; const [l,c]=ST[o.status]||[o.status,""];
+  const btn=(s,txt,cls="")=>`<button class="btn ${cls}" type="button" data-st="${s}">${txt}</button>`;
+  let acts="";
+  if(["esperando_transferencia","comprobante_recibido"].includes(o.status)) acts+=btn("pagado","Aprobar pago","g");
+  if(o.status==="pagado"&&o.type==="tienda") acts+= (a?btn("enviado","Marcar enviado","y"):btn("listo_retiro","Listo para retirar","y"));
+  if(["listo_retiro","enviado"].includes(o.status)) acts+=btn("entregado","Marcar entregado","y");
+  if(!["cancelado","entregado"].includes(o.status)) acts+=btn("cancelado","Cancelar","r");
+  $("#detail").innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h2 style="margin:0;font-size:18px">${o.id}</h2><span class="st ${c}">${l}</span></div>
+    <div class="kv"><span>Cliente</span><b>${esc(o.customer.name)}</b><span>Correo</span><a href="mailto:${esc(o.customer.email)}" style="color:inherit">${esc(o.customer.email)}</a><span>Celular</span><a href="https://wa.me/${o.customer.phone.replace(/\D/g,"").replace(/^0/,"593")}" target="_blank" rel="noopener" style="color:inherit">${esc(o.customer.phone)}</a>${o.customer.document?`<span>Documento</span><span style="color:inherit">${esc(o.customer.document)}</span>`:""}</div>
+    <div class="kv">${o.items.map(i=>`<span>${i.qty} ×</span><span style="color:inherit">${esc(i.name)}${i.size?" · "+i.size:""}${i.colorName?" · "+i.colorName:""} — ${money(i.total)}</span>`).join("")}
+      <span>Subtotal</span><span style="color:inherit">${money(o.subtotal)}</span>${o.type==="tienda"?`<span>Envío</span><span style="color:inherit">${esc(o.shipping.label)} — ${money(o.shippingCost)}</span>`:`<span>Créditos</span><span style="color:inherit">${o.credits} clases</span>`}<span>Total</span><b>${money(o.total)}</b></div>
+    ${a?`<div class="kv"><span>Dirección</span><span style="color:inherit">${esc(a.line)}, ${esc(a.city)}${a.region?", "+esc(a.region):""} ${esc(a.postal||"")} · ${a.country}${a.notes?"<br>"+esc(a.notes):""}</span></div>`:""}
+    <div class="kv"><span>Pago</span><span style="color:inherit">${o.payment.method}${o.payment.card?" · "+esc(o.payment.card):""}${o.payment.authorizationCode?" · Aut. "+esc(o.payment.authorizationCode):""}</span></div>
+    ${o.hasReceipt?`<div class="receipt" id="rc"><button class="btn" type="button" id="loadRc">Ver comprobante</button></div>`:""}
+    ${o.status==="pagado"&&a?`<input id="tracking" placeholder="Número de guía (opcional)">`:""}
+    <div class="acts">${acts}</div>
+    <div class="mute" style="font-size:13px">${o.history.slice().reverse().map(h=>`${new Date(h.at).toLocaleString("es-EC")} · ${(ST[h.status]||[h.status])[0]} · ${h.by}${h.note?" · "+esc(h.note):""}`).join("<br>")}</div>`;
+}
+$("#login").addEventListener("submit",async e=>{e.preventDefault();$("#loginErr").hidden=true;try{await api("/api/admin/login",{password:$("#pw").value});boot();}catch(x){$("#loginErr").textContent=x.message;$("#loginErr").hidden=false;}});
+$("#logout").addEventListener("click",async()=>{await api("/api/admin/logout",{});boot();});
+$("#reload").addEventListener("click",async()=>setOrders(await api("/api/admin/orders")));
+["#fStatus","#fType"].forEach(s=>$(s).addEventListener("change",renderRows)); $("#fQ").addEventListener("input",renderRows);
+$("#rows").addEventListener("click",e=>{const tr=e.target.closest("tr[data-id]"); if(tr) showDetail(tr.dataset.id);});
+$("#detail").addEventListener("click",async e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.id==="loadRc"){const {file}=await api(`/api/admin/orders/${SEL}/receipt`); $("#rc").innerHTML=file.startsWith("data:application/pdf")?`<iframe src="${file}" title="Comprobante"></iframe>`:`<img src="${file}" alt="Comprobante de transferencia">`; return;}
+  if(b.dataset.st){
+    const st=b.dataset.st;
+    if(st==="cancelado" && b.dataset.confirm!=="1"){ b.dataset.confirm="1"; b.textContent="Confirmar cancelación (devuelve stock/créditos)"; return; }
+    b.disabled=true;
+    try{ await api(`/api/admin/orders/${SEL}/status`,{status:st,tracking:$("#tracking")?.value||""}); setOrders(await api("/api/admin/orders")); }
+    catch(x){ alert(x.message); b.disabled=false; }
+  }
+});
+document.querySelector(".tabs").addEventListener("click",async e=>{
+  const b=e.target.closest("[data-tab]"); if(!b) return;
+  document.querySelectorAll("[data-tab]").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  ["orders","stock","users"].forEach(t=>$("#tab-"+t).hidden=t!==b.dataset.tab);
+  if(b.dataset.tab==="stock"){const {products}=await api("/api/admin/stock"); $("#stockRows").innerHTML=products.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.sizes.map(s=>`<label style="margin-right:12px">${s.size} <input type="number" min="0" data-k="${p.id}|${s.size}" value="${s.qty}" aria-label="${esc(p.name)} talla ${s.size}"></label>`).join("")}</td></tr>`).join("");}
+  if(b.dataset.tab==="users") loadUsers();
+});
+$("#saveStock").addEventListener("click",async()=>{const stock={};document.querySelectorAll("[data-k]").forEach(i=>stock[i.dataset.k]=i.value);await api("/api/admin/stock",{stock});$("#stockMsg").textContent="Inventario guardado "+new Date().toLocaleTimeString("es-EC");});
+async function loadUsers(){const {users}=await api("/api/admin/users"); $("#userRows").innerHTML=users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td><b>${u.credits}</b></td><td>${u.unlocked.length}</td><td><button class="btn" data-u="${u.id}" data-d="1" type="button">+1</button> <button class="btn" data-u="${u.id}" data-d="-1" type="button">−1</button></td></tr>`).join("")||`<tr><td colspan="5" class="mute">Aún no hay alumnos registrados.</td></tr>`;}
+$("#userRows").addEventListener("click",async e=>{const b=e.target.closest("[data-u]"); if(!b) return; await api(`/api/admin/users/${b.dataset.u}/credits`,{delta:b.dataset.d}); loadUsers();});
+boot();
+</script>
+</body>
+</html>
