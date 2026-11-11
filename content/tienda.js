@@ -1,4 +1,4 @@
-const PRODUCTS = [
+const TODAS_LAS_PRENDAS = [
   {id:"tee-plan",name:"Camiseta Everybody Has a Plan",cat:"camisetas",shape:"tee",img:"/img/camiseta-plan.jpg",pos:"50% 35%",price:22,colors:["negro"],sizes:["S","M","L","XL","XXL"],flag:"Nuevo",
    desc:"Oversize con ilustración estilo tattoo old school en la espalda: el boxeador, la calavera y la frase que todo peleador conoce.",specs:["Algodón 200 g, corte oversize","Estampado grande en espalda","Cuello reforzado"]},
   {id:"hoodie-wild",name:"Hoodie Wild Ones Never Die",cat:"hoodies",shape:"hoodie",img:"/img/hoodie-wild-ones.jpg",pos:"22% 30%",zoom:1.7,price:42,colors:["negro"],sizes:["S","M","L","XL","XXL"],flag:"Top",
@@ -30,6 +30,11 @@ const PRODUCTS = [
   {id:"gorra",name:"Gorra Jab",cat:"accesorios",shape:"cap",print:"Jab",printFont:"script",price:15,colors:["negro","amarillo"],sizes:["Única"],
    desc:"Gorra curva con logo Jab bordado.",specs:["Bordado frontal","Ajuste trasero","Algodón twill"]}
 ];
+// Prendas principales: solo las 8 primeras se muestran y se venden en la tienda.
+// Las demás quedan guardadas arriba; para volver a mostrarlas, sube este número.
+const PRENDAS_VISIBLES = 8;
+const PRODUCTS = TODAS_LAS_PRENDAS.slice(0, PRENDAS_VISIBLES);
+
 const COLORS = {
   negro:{hex:"#141414",ink:"#ffffff",name:"Negro"},
   amarillo:{hex:"#ffd21f",ink:"#0b0b0b",name:"Amarillo Jab"},
