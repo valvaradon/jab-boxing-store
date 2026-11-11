@@ -491,7 +491,7 @@ const totalStock = p => p.sizes.reduce((a,s)=>a+stockOf(p,s),0);
 /* ===== Tienda ===== */
 function renderChips(){
   const counts = PRODUCTS.reduce((a,p)=>(a[p.cat]=(a[p.cat]||0)+1,a),{});
-  const all = [["todo","Todo",PRODUCTS.length],...Object.entries(CATS).map(([k,v])=>[k,v,counts[k]||0])];
+  const all = [["todo","Todo",PRODUCTS.length],...Object.entries(CATS).map(([k,v])=>[k,v,counts[k]||0]).filter(([,,n])=>n>0)];
   $("#chips").innerHTML = all.map(([k,v,n])=>`<button class="chip" type="button" data-cat="${k}" aria-pressed="${state.cat===k}">${v}<span class="n">${n}</span></button>`).join("");
 }
 function filtered(){
